@@ -190,15 +190,14 @@
 <div class="sheet">
 
   <header>
-    <p class="eyebrow">Agentic AI · Personal Project</p>
-    <h1>KanaMate — <span class="thin">LangChain 기반 멀티에이전트 일정관리 시스템</span></h1>
+    <p class="eyebrow"><br></p>
+    <h1>KanaMate :&nbsp;<span class="thin">LangChain 기반 멀티에이전트 일정관리 시스템</span></h1>
     <p class="lede">
-      “다음 주에 A/B/C랑 회의 잡아줘” 한 문장을, <strong>검증 가능한 tool call과 DB row로 끝까지 추적되는 일정 결정</strong>으로 바꾸는 Agentic AI 시스템.
-    </p>
+      “다음 주에 A/B/C랑 회의 잡아줘” 한 문장을&nbsp;<strong>검증 가능한 tool call과 DB row로 추적되는 일정 결정</strong>으로 바꾸는 에이전트 시스템</p>
     <dl class="meta">
       <div><dt>기간</dt><dd>2026.05 – 2026.06 (7주 · 28 commits)</dd></div>
-      <div><dt>역할</dt><dd>단독 개발 — 설계 · 구현 · 검증</dd></div>
-      <div><dt>스택</dt><dd>Python 3.10 · LangChain 1.2 / LangGraph · Pydantic v2 · SQLite · ChromaDB · MCP · uv</dd></div>
+      <div><dt>역할</dt><dd>단독 개발 : 설계 · 구현 · 검증</dd></div>
+      <div><dt>스택</dt><dd>Python 3.10 · LangChain 1.2 / LangGraph · Pydantic v2 · SQLite · ChromaDB · MCP</dd></div>
       <div><dt>규모</dt><dd>tool 12 · sub-agent 2 · table 4</dd></div>
     </dl>
   </header>
@@ -209,43 +208,34 @@
     <div>
       <section>
         <h2><span class="num">01</span> 문제 정의</h2>
-        <p>일반 챗봇은 “다음 주 화요일 3시 어떠세요?”라는 <strong>그럴듯한 문장</strong>을 만든다. 그런데 그 문장은 —</p>
+        <p>일반 챗봇은 “다음 주 화요일 3시 어떠세요?”라는 <strong>그럴듯한 문장</strong>을 만든다. 그런데 그 문장은&nbsp;</p>
         <ul>
           <li>내 기존 일정과 충돌하는지 확인한 적이 없고,</li>
           <li>팀원이 실제로 그 시간에 가능한지 근거가 없고,</li>
           <li>앱이 읽어서 저장할 수 있는 데이터도 아니다.</li>
         </ul>
-        <p>그래서 <strong>“모델이 무슨 말을 했는가”가 아니라 “어떤 tool을 어떤 인자로 호출했고 어떤 row가 남았는가”를 1급 관심사로 두는</strong> 일정관리 에이전트를 설계했다.</p>
+        <p>그래서 <strong>“모델이 무슨 말을 했는가”가 아니라 “어떤 tool을 어떤 인자로 호출했고 어떤 row가 남았는가”를 중점으로 두는&nbsp;</strong>일정관리 에이전트를 설계했다.</p>
       </section>
 
       <section>
         <h2><span class="num">02</span> 아키텍처</h2>
         <div class="diagram">
-          <div class="node">Supervisor<span class="sm">delegate tool만 호출</span></div>
+          <div class="node">Supervisor<span class="sm">서브 에이전트만 호출</span></div>
           <div class="arrow">┌──────────── ┴ ────────────┐</div>
           <div class="pair">
             <div class="lane">
-              <div class="node sub">Nana<span class="sm">개인 일정</span></div>
-              <div class="toolist mono">
-                personal_create / list / delete_schedule<br>
-                save_structured_request<br>
-                search_rag_memory · search_sqlite_requests
-              </div>
+              <div class="node sub">Nana<span class="sm">개인 일정 에이전트</span></div>
+              <div class="toolist mono"><br></div>
               <div class="store">SQLite · ChromaDB</div>
             </div>
             <div class="lane">
-              <div class="node sub">Kana<span class="sm">그룹 일정</span></div>
-              <div class="toolist mono">
-                search_previous_conversations<br>
-                load_conversation_messages<br>
-                extract_schedules_from_history<br>
-                decide_final_slot
-              </div>
+              <div class="node sub">Kana<span class="sm">그룹 일정 에이전트</span></div>
+              <div class="toolist mono"><br></div>
               <div class="store">MCP Server</div>
             </div>
           </div>
         </div>
-        <p class="caption">설계 원칙은 하나다. <strong>Supervisor는 업무 tool을 직접 호출하지 않는다.</strong> delegate tool만 호출하고 각 sub-agent의 내부 trace를 근거로 최종 답을 만든다 — 책임이 섞이면 누가 무엇을 잘못 판단했는지 추적할 수 없기 때문이다.</p>
+        <p class="caption"><strong>Supervisor는 업무 tool을 직접 호출하지 않는다.</strong>&nbsp;<br>다른 서브에이전트만 호출하고 각 서브에이전트의 내부 trace를 근거로 최종 답을 만든다.</p>
       </section>
 
       <section>
@@ -296,12 +286,12 @@
 
       <section>
         <h2><span class="num">05</span> 검증</h2>
-        <p>“답변이 그럴듯한가”로 동작을 판정하지 않기 위해 두 겹의 검증을 넣었다.</p>
+        <p>답변이 그럴듯한가로 동작을 판정하지 않기 위해 두 겹의 검증을 넣었다.</p>
         <ul>
-          <li><strong>Trace assertion</strong> — tool 호출 순서와 저장 row count를 <span class="k mono">assert</span>로 고정.</li>
-          <li><strong>LLM-as-a-judge</strong> — supervisor trace와 delegate payload JSON을 judge 모델에 넘겨 6개 체크리스트(위임 순서, 역할 침범 여부, 최종 답변의 근거 반영 등)로 판정. 첫 줄이 <span class="k mono">PASS</span>가 아니면 실행이 실패한다.</li>
+          <li><strong>Trace assert</strong>&nbsp;: tool 호출 순서와 저장 row count를 <span class="k mono">assert</span>로 고정.</li>
+          <li><strong>LLM-as-a-judge</strong>&nbsp;: supervisor trace와 delegate payload JSON을 judge 모델에 넘겨 6개 체크리스트(위임 순서, 역할 침범 여부, 최종 답변의 근거 반영 등)로 판정. 첫 줄이 <span class="k mono">PASS</span>가 아니면 실행이 실패한다.</li>
         </ul>
-        <p>재현성은 <span class="k mono">uv.lock</span>과 <span class="k mono">langgraph-prebuilt==1.0.8</span> 핀으로 고정했다. LangChain 1.x의 <span class="k mono">create_agent</span> import가 이 전이 의존성 버전에 민감해 실제로 환경이 깨진 적이 있어, lockfile과 별개로 직접 핀을 박았다.</p>
+        <p><br></p>
       </section>
     </div>
   </div>
@@ -309,17 +299,19 @@
   <div class="outcome">
     <div>
       <h4>결과</h4>
-      <p>골든 케이스(“팀원 A/B/C와 다음 주 회의 시간을 잡아줘”)에서 supervisor가 <span class="k mono">nana_agent → kana_agent</span> 순서로 위임하고, 내 일정 충돌 확인과 팀원 가능 시간 후보를 모두 반영한 최종 시간과 선택 근거를 산출. judge 검증 PASS.</p>
+      <p>골든 케이스(“팀원 A/B/C와 다음 주 회의 시간을 잡아줘”)에서 supervisor가 <span class="k mono">nana_agent → kana_agent</span> 순서로 위임하고, 내 일정 충돌 확인과 팀원 가능 시간 후보를 모두 반영한 최종 시간과 선택 근거 산출</p>
     </div>
     <div>
       <h4>한계</h4>
       <p>노트북 기반 PoC이며, 외부 멤버의 일정은 고정 데이터로 대체했다.</p>
     </div>
     <div>
-      <h4>다음 단계</h4>
-      <p>실제 캘린더 API 연동, Gradio UI 연결, 후보 시간 충돌 시 재협상 루프 추가.</p>
+      <h4>사용 모델</h4>
+      <p>OpenAI o3-mini</p>
     </div>
   </div>
+
+
 
   <p class="links">소스 · 실행 노트북 → <a href="https://github.com/HYH1945/kanamate-portfolio">github.com/HYH1945/kanamate-portfolio</a></p>
 
