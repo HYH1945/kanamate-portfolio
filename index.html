@@ -72,7 +72,8 @@
   .box .role { margin: 2px 0 0; font-size: .92rem; color: var(--ink-3); }
   .box.top { text-align: center; }
   .box ul { margin: 12px 0 0; padding: 12px 0 0; border-top: 1px dashed var(--rule); list-style: none; }
-  .box li { font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; font-size: .84rem; color: var(--ink-2); line-height: 1.9; }
+  .box li { font-size: .93rem; color: var(--ink-2); line-height: 1.6; padding: 4px 0 4px 14px; position: relative; }
+  .box li::before { content: ""; position: absolute; left: 0; top: 13px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
   .box .store { margin: 12px 0 0; font-size: .85rem; color: var(--accent); font-weight: 500; }
   .split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .down { text-align: center; color: var(--ink-3); font-size: .9rem; }
@@ -123,12 +124,30 @@
   .src { font-size: .84rem; color: var(--ink-3); margin-top: 12px; }
   .src a { color: var(--accent); text-decoration: none; }
 
+  /* vs & decisions */
+  .vs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 4px 0 16px; }
+  .vs div { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; font-size: .93rem; color: var(--ink-2); line-height: 1.6; }
+  .vs .tag { display: block; font-size: .78rem; font-weight: 700; color: var(--ink-3); margin-bottom: 4px; }
+  .conclude { font-weight: 700; color: var(--ink); border-left: 3px solid var(--accent); padding-left: 14px; margin: 0; }
+  .decisions { margin: 0; }
+  .decisions div { display: grid; grid-template-columns: 220px 1fr; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--rule); }
+  .decisions div:last-child { border-bottom: 0; }
+  .decisions dt { font-weight: 700; color: var(--ink); line-height: 1.6; }
+  .decisions dd { margin: 0; color: var(--ink-2); }
+
   /* timeline */
-  .timeline { list-style: none; padding: 0; margin: 20px 0 0; display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
-  .timeline li { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 8px; text-align: center; }
+  .timeline { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 20px 0 0; }
+  .timeline button { font: inherit; cursor: pointer; background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 6px; text-align: center; color: inherit; transition: border-color .15s, background .15s; }
+  .timeline button:hover { border-color: var(--ink-3); }
+  .timeline button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .timeline button[aria-selected="true"] { border-color: var(--accent); background: var(--accent-soft); }
   .timeline .w { display: block; font-size: .78rem; font-weight: 700; color: var(--accent); }
   .timeline .k { display: block; font-size: .86rem; color: var(--ink); line-height: 1.45; margin-top: 2px; }
-  .timeline li.now { border-color: var(--accent); background: var(--accent-soft); }
+  .wpanel { margin-top: 12px; background: var(--card); border: 1px solid var(--rule); border-radius: 12px; padding: 18px 20px; }
+  .wpanel h3 { margin: 0 0 8px; font-size: 1rem; }
+  .wpanel ul { margin: 0; padding: 0; list-style: none; }
+  .wpanel li { position: relative; padding: 4px 0 4px 14px; font-size: .95rem; color: var(--ink-2); line-height: 1.6; }
+  .wpanel li::before { content: ""; position: absolute; left: 0; top: 14px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
 
   .lesson { margin-top: 20px; }
   .wk { font-size: .78rem; font-weight: 500; color: var(--ink-3); margin-left: 4px; }
@@ -151,6 +170,8 @@
     .meta, .split { grid-template-columns: 1fr; }
     .timeline { grid-template-columns: repeat(3, 1fr); }
     .bubble { max-width: 100%; }
+    .vs { grid-template-columns: 1fr; }
+    .decisions div { grid-template-columns: 1fr; gap: 2px; }
     .grid { grid-template-columns: 40px repeat(5, 1fr); }
     .steps li { grid-template-columns: 56px 1fr; gap: 12px; }
     .outcome div { grid-template-columns: 1fr; gap: 2px; }
@@ -172,7 +193,7 @@
   <header>
     <p class="eyebrow">Kakao Tech Campus · Agentic AI Project</p>
     <h1>KanaMate<br>멀티에이전트 일정 조율</h1>
-    <p class="lede">한 문장 요청만으로 여러 사람의 빈 시간을 찾아 회의 시간까지 확정하는 LangChain 에이전트</p>
+    <p class="lede">개인 일정 관리와 팀 회의 시간 조율을 하는 LangChain 멀티에이전트</p>
     <dl class="meta">
       <div><dt>기간</dt><dd>2026.06 – 08 · 6주 과정</dd></div>
       <div><dt>역할</dt><dd>제공 런타임 위 에이전트 로직 구현</dd></div>
@@ -186,12 +207,6 @@
     <div class="chat">
       <div class="bubble user">철수, 하린이랑 7월 7일부터 17일 사이에 1시간짜리 회의 시간 잡아줘</div>
     </div>
-    <ol class="trace">
-      <li>Supervisor가 그룹 조율 요청으로 판단해 <code>kana_agent</code>에 위임</li>
-      <li><code>collect_member_schedules</code> 2회<span class="sub">철수·하린의 바쁜 시간, 내 바쁜 시간을 각각 수집</span></li>
-      <li class="key"><code>find_common_available_slots</code><span class="sub">Kana가 고른 후보 5개를 겹침 검증</span></li>
-      <li class="key"><code>decide_final_slot</code><span class="sub">0번 후보 선택 → final_slot 2026-07-07 12:00-13:00</span></li>
-    </ol>
     <div class="grid" aria-label="7월 7일 일정표">
       <span></span><span class="h">09</span><span class="h">10</span><span class="h">11</span><span class="h">12</span><span class="h">13</span>
       <span class="n">철수</span><span class="c busy">회의</span><span class="c busy">API 실습</span><span class="c"></span><span class="c pick">확정</span><span class="c"></span>
@@ -202,97 +217,89 @@
     <div class="chat" style="margin-top:20px">
       <div class="bubble bot"><span class="who">Kana</span>철수, 하린 님과 2026년 7월 7일부터 7월 17일 사이 1시간 회의는 2026년 7월 7일 12시부터 13시까지로 확정했습니다. 이 시간에 모두 일정이 비어 있습니다.</div>
     </div>
-    <p class="src">2026-10-18 재실행 결과, 실습용 고정 데이터 기준 · <a href="trace/group_schedule_demo.json">전체 trace JSON</a></p>
+    <p class="src">2026-10-18 재실행 결과, 실습용 고정 데이터 기준 · <a href="trace.html">단계별 trace 보기 →</a></p>
   </section>
 
   <section>
-    <h2><span class="num">01</span>문제</h2>
-    <p>주차마다 기능을 붙이다 보니 Week 5에는 <strong>한 agent가 tool 21개</strong>로 개인 일정 저장부터 팀원 일정 조율까지 전부 판단하는 상태가 됨</p>
-    <p>요청을 분류하는 <strong>Supervisor</strong>, 개인 일정 담당 <strong>Nana</strong>, 그룹 조율 담당 <strong>Kana</strong>로 나눠 각자 자기 역할의 tool만 보도록 재구성</p>
-    <p>분리 후 Supervisor는 tool 2개 중 위임 대상만, Nana는 14개, Kana는 8개 안에서만 판단하도록 판단 범위가 좁아짐</p>
+    <h2><span class="num">01</span>6주간의 구현</h2>
+    <p>매주 이전 코드 위에 기능을 쌓는 방식. 주차를 누르면 구현 내용 확인</p>
+    <div class="timeline" role="tablist" aria-label="주차별 구현">
+      <button type="button" role="tab" id="tab-W1" aria-controls="panel-W1" aria-selected="false" tabindex="-1"><span class="w">W1</span><span class="k">Tool calling</span></button><button type="button" role="tab" id="tab-W2" aria-controls="panel-W2" aria-selected="false" tabindex="-1"><span class="w">W2</span><span class="k">Structured output</span></button><button type="button" role="tab" id="tab-W3" aria-controls="panel-W3" aria-selected="false" tabindex="-1"><span class="w">W3</span><span class="k">SQLite 영속화</span></button><button type="button" role="tab" id="tab-W4" aria-controls="panel-W4" aria-selected="false" tabindex="-1"><span class="w">W4</span><span class="k">출처별 RAG</span></button><button type="button" role="tab" id="tab-W5" aria-controls="panel-W5" aria-selected="false" tabindex="-1"><span class="w">W5</span><span class="k">MCP 연동</span></button><button type="button" role="tab" id="tab-W6" aria-controls="panel-W6" aria-selected="true" tabindex="0"><span class="w">W6</span><span class="k">Multi-agent</span></button>
+    </div>
+    <div class="wpanels">
+      <div class="wpanel" role="tabpanel" id="panel-W1" aria-labelledby="tab-W1" hidden><h3>W1 · Tool calling</h3><ul><li>개인 일정 추가 · 조회 · 삭제 tool 3개 구현</li><li>LLM은 어떤 tool을 어떤 인자로 부를지만 고르고, 실행은 Python이 담당</li><li>대화마다 session_id로 일정 범위를 분리</li></ul></div><div class="wpanel" role="tabpanel" id="panel-W2" aria-labelledby="tab-W2" hidden><h3>W2 · Structured output</h3><ul><li>자연어 요청을 Pydantic 스키마로 변환 (개인 일정 · 그룹 일정 · 할 일 · 알림 · 미분류)</li><li>종류 필드의 기본값을 없애 LLM이 반드시 분류하도록 수정 (리뷰 반영)</li><li>형식이 맞지 않는 LLM 응답은 그냥 통과시키지 않고 에러로 차단</li></ul></div><div class="wpanel" role="tabpanel" id="panel-W3" aria-labelledby="tab-W3" hidden><h3>W3 · SQLite 영속화</h3><ul><li>tool 입력 스키마 그대로 SQLite에 저장 · 조회 · 수정 · 삭제</li><li>LLM이 만든 원본과 일정 · 할 일 · 알림 테이블을 함께 저장해 나중에 추적 가능</li><li>조건 없는 전체 삭제 차단, 실패 응답도 성공과 같은 형식 유지 (리뷰 반영)</li></ul></div><div class="wpanel" role="tabpanel" id="panel-W4" aria-labelledby="tab-W4" hidden><h3>W4 · 출처별 RAG</h3><ul><li>메모(ChromaDB), 저장 기록(SQLite), 지난 대화(ChromaDB에 lazy sync) 검색 tool 분리</li><li>관련 · 무관 질문의 거리를 실측해 1.2 기준으로 무관한 결과 필터링</li><li>어떤 질문에 어떤 tool을 쓰는지 예시 중심으로 prompt를 다시 써 라우팅 버그 수정</li></ul></div><div class="wpanel" role="tabpanel" id="panel-W5" aria-labelledby="tab-W5" hidden><h3>W5 · MCP 연동</h3><ul><li>팀원 대화 · 공유 일정 MCP tool을 LangChain tool로 감싸기</li><li>내 일정과 팀원 일정을 병합할 때 같은 날짜 필터 적용, 내 일정 중복 제거</li><li>외부 서버가 실패해도 내 일정은 유지하고 실패 여부만 함께 반환</li></ul></div><div class="wpanel" role="tabpanel" id="panel-W6" aria-labelledby="tab-W6"><h3>W6 · Multi-agent</h3><ul><li>Supervisor + Nana / Kana로 분리, 하위 agent는 한 번만 만들어 재사용</li><li>후보 선택과 확정은 Agent, 겹침 검증과 기록은 Tool이 맡는 구조</li><li>하위 agent trace에서 최종 결정 payload를 꺼내 Supervisor 결과에 포함</li></ul></div>
+    </div>
+    <script>
+      (function () {
+        var tabs = Array.prototype.slice.call(document.querySelectorAll('.timeline [role="tab"]'));
+        function select(tab) {
+          tabs.forEach(function (t) {
+            var on = t === tab;
+            t.setAttribute('aria-selected', on);
+            t.tabIndex = on ? 0 : -1;
+            document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+          });
+        }
+        tabs.forEach(function (t, i) {
+          t.addEventListener('click', function () { select(t); });
+          t.addEventListener('keydown', function (e) {
+            var d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+            if (!d) return;
+            var next = tabs[(i + d + tabs.length) % tabs.length];
+            select(next); next.focus();
+          });
+        });
+      })();
+    </script>
   </section>
 
   <section>
     <h2><span class="num">02</span>구조</h2>
+    <p>Week 5에서 한 agent가 <strong>tool 21개</strong>를 모두 판단하게 되어, Week 6에서 역할별로 분리</p>
     <div class="arch">
       <div class="box top">
         <h3>Supervisor</h3>
-        <p class="role">요청을 보고 Nana 또는 Kana에게 위임만 담당</p>
+        <p class="role">요청을 보고 Nana 또는 Kana에게 넘기기만 함 · 직접 일하는 tool 없음</p>
       </div>
       <div class="down">↙ &nbsp; ↘</div>
       <div class="split">
         <div class="box">
-          <h3>Nana</h3>
-          <p class="role">개인 일정 · 저장 · 검색</p>
+          <h3>Nana <small class="wk">개인 비서 · tool 14개</small></h3>
           <ul>
-            <li>personal_*_schedule</li>
-            <li>save_structured_request</li>
-            <li>search_personal_references</li>
+            <li>내 일정 추가 · 조회 · 수정 · 삭제</li>
+            <li>자연어 요청을 정리해 일정 · 할 일 · 알림으로 저장</li>
+            <li>메모, 저장한 기록, 지난 대화를 출처별로 검색</li>
           </ul>
           <p class="store">SQLite · ChromaDB</p>
         </div>
         <div class="box">
-          <h3>Kana</h3>
-          <p class="role">팀원 일정 조회 · 공통 시간 결정</p>
+          <h3>Kana <small class="wk">그룹 조율 · tool 8개</small></h3>
           <ul>
-            <li>collect_member_schedules</li>
-            <li>find_common_available_slots</li>
-            <li>decide_final_slot</li>
+            <li>팀원과 나눈 지난 대화에서 일정 찾기</li>
+            <li>나와 팀원의 바쁜 시간 모으기</li>
+            <li>모두 비는 시간을 골라 최종 확정 (저장 권한 없음)</li>
           </ul>
           <p class="store">MCP Server</p>
         </div>
       </div>
     </div>
-    <p>매주 이전 주차 코드 위에 기능을 쌓는 방식으로 진행했고, Week 6에서는 기존 tool을 새로 짜지 않고 import해서 역할별로 재조립</p>
-    <ol class="timeline">
-      <li><span class="w">W1</span><span class="k">Tool calling</span></li>
-      <li><span class="w">W2</span><span class="k">Structured output</span></li>
-      <li><span class="w">W3</span><span class="k">SQLite 영속화</span></li>
-      <li><span class="w">W4</span><span class="k">출처별 RAG</span></li>
-      <li><span class="w">W5</span><span class="k">MCP 연동</span></li>
-      <li class="now"><span class="w">W6</span><span class="k">Multi-agent</span></li>
-    </ol>
+    <p class="conclude">나눈 기준은 데이터와 권한 · Nana는 내 데이터 읽기·쓰기, Kana는 팀원 데이터 읽기만</p>
   </section>
 
   <section>
-    <h2><span class="num">03</span>핵심 설계 · 고르는 건 Agent, 검증은 Python</h2>
-    <p>Kana가 회의 시간을 정하는 다섯 단계</p>
+    <h2><span class="num">03</span>핵심 설계 · 고르는 건 Agent, 검증은 Tool</h2>
     <ol class="steps">
-      <li><span class="badge tool">Tool</span><span class="d"><b>수집</b> · 나와 팀원의 바쁜 시간 모으기</span></li>
-      <li><span class="badge agent">Agent</span><span class="d"><b>후보 선택</b> · 바쁜 시간을 읽고 비는 시간 후보 고르기</span></li>
-      <li><span class="badge tool">Tool</span><span class="d"><b>검증</b> · 후보가 누군가의 일정과 겹치는지 확인</span></li>
-      <li><span class="badge agent">Agent</span><span class="d"><b>확정</b> · 후보 하나와 선택 이유 결정</span></li>
-      <li><span class="badge tool">Tool</span><span class="d"><b>기록</b> · 결정 내용을 payload로 저장</span></li>
+      <li><span class="badge tool">Tool</span><span class="d"><b>수집</b> · 모두의 바쁜 시간</span></li>
+      <li><span class="badge agent">Agent</span><span class="d"><b>후보 선택</b> · 비는 시간 고르기</span></li>
+      <li><span class="badge tool">Tool</span><span class="d"><b>검증</b> · 겹침 확인</span></li>
+      <li><span class="badge agent">Agent</span><span class="d"><b>확정</b> · 시간과 이유 결정</span></li>
+      <li><span class="badge tool">Tool</span><span class="d"><b>기록</b> · payload 저장</span></li>
     </ol>
-    <div class="callout">
-      <p>Python이 시간을 직접 계산하면 <strong>왜 그 시간인지가 기록에 안 남고</strong>, LLM에만 맡기면 겹침을 확인할 방법이 없음. 그래서 선택은 agent, 검증과 기록은 tool이 맡도록 나누고 같은 규칙을 <strong>tool 설명과 prompt 양쪽에</strong> 명시</p>
-    </div>
+    <p class="conclude">Python만 쓰면 선택 이유가, LLM만 쓰면 검증이 빠져서 둘을 나누고 같은 규칙을 tool 설명과 prompt에 명시</p>
   </section>
 
   <section>
-    <h2><span class="num">04</span>설계 결정</h2>
-    <div class="cards">
-      <div class="card">
-        <h3>역할 경계는 prompt보다 tool 구성으로 <small class="wk">W6</small></h3>
-        <p>Supervisor는 하위 agent 2개만 호출 가능, Kana에는 저장 tool 자체가 없음. 지시문 대신 쓸 수 있는 tool로 역할을 제한</p>
-      </div>
-      <div class="card">
-        <h3>원본과 정규화 데이터를 함께 저장 <small class="wk">W3</small></h3>
-        <p>LLM이 만든 구조화 결과 원본을 그대로 남기고, 종류별로 일정·할 일·알림 테이블에 나눠 저장. LLM이 무엇을 잘못 구조화했는지 나중에 추적 가능</p>
-      </div>
-      <div class="card">
-        <h3>여러 출처의 일정을 한 결과로 병합 <small class="wk">W5</small></h3>
-        <p>내 일정(SQLite)과 팀원 일정(MCP)을 하나로 합칠 때 날짜 필터를 양쪽에 똑같이 적용하고, 외부 조회에서는 나를 제외해 중복 제거. 외부 서버가 실패해도 내 일정은 유지하고 실패 여부만 함께 반환</p>
-      </div>
-      <div class="card">
-        <h3>검색 임계값은 실측으로 <small class="wk">W4</small></h3>
-        <p>관련 질문은 distance 1.08 이하, 무관한 질문은 1.34 이상으로 측정돼 그 사이인 1.2를 기준으로 무관한 결과를 필터링</p>
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <h2><span class="num">05</span>문제 해결</h2>
+    <h2><span class="num">04</span>문제 해결</h2>
     <div class="cards">
       <div class="card">
         <h3>취향을 말해도 저장이 안 되고, 대화 검색과 저장 기록 검색이 뒤섞임 <small class="wk">W4</small></h3>
@@ -303,28 +310,18 @@
         <p class="fix"><span class="label">해결</span>다른 사람이 언급된 대화·일정 요청은 Kana로 보내는 기준을 Supervisor prompt에 추가</p>
       </div>
       <div class="card">
-        <h3>다음 주 화요일 같은 상대 날짜를 잘못 해석 <small class="wk">W6</small></h3>
-        <p class="fix"><span class="label">해결</span>오늘 날짜를 Kana prompt 맨 앞에 넣어 기준점 제공</p>
-      </div>
-      <div class="card">
         <h3>공통 시간이 없으면 기록 없이 대화가 끝남 <small class="wk">W6</small></h3>
         <p class="fix"><span class="label">해결</span>후보가 없어도 결정 tool을 호출해 보류 상태와 이유를 남기도록 변경</p>
       </div>
     </div>
-    <div class="callout lesson">
-      <p><strong>공통 교훈</strong> · tool 설명과 prompt에 적히지 않은 규칙은 agent가 지키지 않음. W4 라우팅 버그와 W6 계약 설계 모두 같은 원인이었고, 이후 새 tool을 붙일 때마다 tool 설명, prompt, 실제 코드가 같은 규칙을 말하는지부터 점검</p>
-      <p>또한 W6의 세 건은 모두 정상 흐름이 아닌 예외 상황에서 발생. 빈 결과, 필터 없는 기본값, 외부 호출 실패를 정상 케이스와 별도로 확인하는 습관이 생김</p>
-    </div>
+    <p class="conclude" style="margin-top:20px">tool 설명과 prompt에 적히지 않은 규칙은 agent가 지키지 않는다는 것, 버그는 대부분 예외 경로에서 나온다는 것을 배움</p>
   </section>
 
   <section>
-    <h2><span class="num">06</span>결과와 한계</h2>
+    <h2><span class="num">05</span>한계와 다음 단계</h2>
     <dl class="outcome">
-      <div><dt>결과</dt><dd>그룹 일정 요청에 검증된 후보 중 최종 시간과 선택 이유를 기록, 후보가 없으면 보류와 사유를 기록</dd></div>
-      <div><dt>한계</dt><dd>최종 확정 tool이 agent가 넘긴 시간을 검증된 후보와 다시 대조하지 않음. 과거 실행 기록 중 겹치는 시간이 확정된 사례 1건 확인</dd></div>
-      <div><dt></dt><dd>Supervisor가 확정 후 불필요하게 Nana에 저장을 다시 요청하고, Nana의 거절 문구가 최종 답변에 섞이는 경우가 있음</dd></div>
-      <div><dt></dt><dd>팀원 데이터는 실습용 고정 데이터, 검증은 Trace 육안 확인 위주</dd></div>
-      <div><dt>다음 단계</dt><dd>확정 시간을 검증된 후보 목록과 대조, 확정 이후 위임 종료 규칙을 Supervisor prompt에 추가, tool 호출 순서 회귀 테스트</dd></div>
+      <div><dt>한계</dt><dd>확정 tool이 agent가 넘긴 시간을 후보와 다시 대조하지 않아, 실행 기록 중 겹치는 시간이 확정된 사례 1건. 확정 후 Supervisor가 Nana에 불필요하게 재위임하는 경우도 있음</dd></div>
+      <div><dt>다음 단계</dt><dd>확정 시간을 후보 목록과 대조, 확정 후 위임 종료 규칙 추가, tool 호출 순서 회귀 테스트</dd></div>
     </dl>
   </section>
 
