@@ -2,97 +2,95 @@
 
 ---
 
-# KanaMate — LangChain 기반 멀티에이전트 일정관리 시스템
+# KanaMate · 멀티에이전트 일정 조율
 
-> "다음 주에 A/B/C랑 회의 잡아줘" 한 문장을, 검증 가능한 tool call과 DB row로 끝까지 추적되는 일정 결정으로 바꾸는 Agentic AI 시스템
+한 문장 요청만으로 여러 사람의 빈 시간을 찾아 회의 시간까지 확정하는 LangChain 에이전트
 
 |  |  |
 | --- | --- |
-| **기간** | 2026.05 ~ 2026.06 (7주, 28 commits) |
-| **역할** | 단독 개발 — 에이전트 아키텍처 설계 · 구현 · 검증 체계 구축 |
-| **기술 스택** | Python 3.10 · LangChain 1.2 / LangGraph · Pydantic v2 · SQLite · ChromaDB · MCP |
-| **규모** | 12개 tool · 2개 sub-agent · 4개 정규화 table · 6개 실행 노트북 |
+| **기간** | 2026.06 ~ 08 · 카카오테크 캠퍼스 6주 과정 |
+| **역할** | 과정에서 제공한 런타임 · MCP 서버 · UI 위에서 에이전트 로직 구현 |
+| **스택** | LangChain · Pydantic · SQLite · ChromaDB · MCP |
+| **모델** | gpt-4.1-mini |
 
----
+## 00 실행 예시
 
-## 1. 문제 정의
+> 철수, 하린이랑 7월 7일부터 17일 사이에 1시간짜리 회의 시간 잡아줘
 
-일반 챗봇은 "다음 주 화요일 3시 어떠세요?"라는 **그럴듯한 문장**을 만든다. 그런데 그 문장은
+1. Supervisor가 그룹 조율 요청으로 판단해 `kana_agent`에 위임
+2. `collect_member_schedules` 2회 · 철수·하린의 바쁜 시간, 내 바쁜 시간을 각각 수집
+3. `find_common_available_slots` · Kana가 고른 후보 5개를 겹침 검증
+4. `decide_final_slot` · 0번 후보 선택 → `final_slot` 2026-07-07 12:00-13:00
 
-- 내 기존 일정과 충돌하는지 확인한 적이 없고,
-- 팀원들이 실제로 그 시간에 가능한지에 대한 근거가 없고,
-- 앱이 읽어서 저장할 수 있는 데이터도 아니다.
+| 7/7 | 09 | 10 | 11 | 12 | 13 |
+| --- | --- | --- | --- | --- | --- |
+| 철수 | 회의 | API 실습 | | **확정** | |
+| 하린 | 회의 | | | **확정** | |
+| 나 | 회의 | | 회의 | **확정** | |
 
-그래서 **"모델이 무슨 말을 했는가"가 아니라 "어떤 tool을 어떤 인자로 호출했고 어떤 row가 남았는가"를 중점으로 두는** 일정관리 에이전트를 설계했다.
+**Kana** · 철수, 하린 님과 2026년 7월 7일부터 7월 17일 사이 1시간 회의는 2026년 7월 7일 12시부터 13시까지로 확정했습니다. 이 시간에 모두 일정이 비어 있습니다.
 
-## 2. 아키텍처
+2026-10-18 재실행 결과, 실습용 고정 데이터 기준 · [전체 trace JSON](trace/group_schedule_demo.json)
+
+## 01 문제
+
+- 주차마다 기능을 붙이다 보니 Week 5에는 **한 agent가 tool 21개**로 개인 일정 저장부터 팀원 일정 조율까지 전부 판단하는 상태가 됨
+- 요청을 분류하는 **Supervisor**, 개인 일정 담당 **Nana**, 그룹 조율 담당 **Kana**로 나눠 각자 자기 역할의 tool만 보도록 재구성
+- 분리 후 Supervisor는 tool 2개 중 위임 대상만, Nana는 14개, Kana는 8개 안에서만 판단하도록 판단 범위가 좁아짐
+
+## 02 구조
 
 ```text
-   "팀원 A/B/C와              ┌──────────────────┐
-    다음 주 회의   ─────────▶ │    Supervisor    │  서브 에이전트만 호출
-    시간을 잡아줘"            └───┬──────────┬───┘
-                    nana_agent │          │ kana_agent
-                      ┌────────▼───┐  ┌───▼────────┐
-                      │    Nana    │  │    Kana    │
-                      │  개인 일정  │  │  그룹 일정  │
-                      └──────┬─────┘  └─────┬──────┘
-  personal_create/list/delete_schedule │    │ search_previous_conversations
-  save_structured_request              │    │ load_conversation_messages
-  search_rag_memory                    │    │ extract_schedules_from_history
-  search_sqlite_requests               │    │ decide_final_slot
-                      ┌────────────────▼┐  ┌▼──────────────────┐
-                      │ SQLite · ChromaDB│  │    MCP Server     │
-                      └──────────────────┘  └───────────────────┘
+               Supervisor  (위임만 담당)
+              ┌─────┴─────┐
+            Nana         Kana
+      개인 일정·저장·검색   팀원 일정 조회·공통 시간 결정
+      SQLite · ChromaDB   MCP Server
 ```
 
-설계 원칙은 하나다. **Supervisor는 업무 tool을 직접 호출하지 않는다.** 다른 서브에이전트(`nana_agent`, `kana_agent`)만 호출하고 각 서브에이전트의 내부 trace를 근거로 최종 답을 만든다. 책임이 섞이면 "누가 무엇을 잘못 판단했는지" 추적이 불가능해지기 때문이다.
+| W1 | W2 | W3 | W4 | W5 | W6 |
+| --- | --- | --- | --- | --- | --- |
+| Tool calling | Structured output | SQLite 영속화 | 출처별 RAG | MCP 연동 | **Multi-agent** |
 
-## 3. 핵심 구현
+매주 이전 주차 코드 위에 기능을 쌓는 방식으로 진행했고, Week 6에서는 기존 tool을 새로 짜지 않고 import해서 역할별로 재조립
 
-| 레이어 | 구현 | 결과물 |
+## 03 핵심 설계 · 고르는 건 Agent, 검증은 Python
+
+| 단계 | 주체 | 내용 |
 | --- | --- | --- |
-| Tool calling | 개인 일정 생성/조회/삭제를 tool로 분리, 모델은 인자만 생성 | `personal_*_schedule` trace |
-| Structured output | Pydantic으로 요청을 5종(`personal_schedule`, `group_schedule`, `todo`, `reminder`, `unknown`)으로 분류·검증 | 검증된 payload |
-| 영속화 | tool 입력 스키마(`BaseModel`)를 그대로 SQLite 정규화 저장 | 4개 table + `request_id` 연결 |
-| Agentic RAG | ChromaDB(자유 메모) / SQLite(구조화 row) 검색 tool을 분리하고 모델이 선택 | `hits` / `rows` 근거 |
-| MCP | 과거 대화 DB 접근을 MCP tool 경계 뒤로 이동 | 에이전트–데이터 소스 분리 |
-| Multi-agent | Supervisor + Nana/Kana sub-agent 위임 구조 | `final_slot` + `reason` |
+| 수집 | Tool | 나와 팀원의 바쁜 시간 모으기 |
+| 후보 선택 | **Agent** | 바쁜 시간을 읽고 비는 시간 후보 고르기 |
+| 검증 | Tool | 후보가 누군가의 일정과 겹치는지 확인 |
+| 확정 | **Agent** | 후보 하나와 선택 이유 결정 |
+| 기록 | Tool | 결정 내용을 payload로 저장 |
 
-## 4. 기술적 의사결정
+Python이 시간을 직접 계산하면 왜 그 시간인지가 기록에 안 남고, LLM에만 맡기면 겹침을 확인할 방법이 없음. 그래서 선택은 agent, 검증과 기록은 tool이 맡도록 나누고 같은 규칙을 tool 설명과 prompt 양쪽에 명시
 
-**병렬 tool 호출을 차단해 실행 순서를 보장했다.**
-LangChain agent는 기본적으로 tool을 병렬 호출한다. 하지만 `search_previous_conversations → extract_schedules_from_history → decide_final_slot`은 앞 결과가 뒤의 입력이 되는 파이프라인이다. 미들웨어로 `parallel_tool_calls=False`를 주입해 순서를 강제했고, 그 결과 trace가 매번 같은 모양으로 재현된다.
+## 04 설계 결정
 
-```python
-class DisableParallelToolCalls(AgentMiddleware):
-    def wrap_model_call(self, request, handler):
-        request.model_settings["parallel_tool_calls"] = False
-        return handler(request)
-```
+- **역할 경계는 prompt보다 tool 구성으로 (W6)** · Supervisor는 하위 agent 2개만 호출 가능, Kana에는 저장 tool 자체가 없음
+- **원본과 정규화 데이터를 함께 저장 (W3)** · LLM이 만든 구조화 결과 원본을 남기고 일정·할 일·알림 테이블에 나눠 저장해, 잘못 구조화된 부분을 나중에 추적 가능
+- **여러 출처의 일정을 한 결과로 병합 (W5)** · 내 일정(SQLite)과 팀원 일정(MCP)에 같은 날짜 필터를 적용하고 외부 조회에서는 나를 제외해 중복 제거. 외부 서버가 실패해도 내 일정은 유지하고 실패 여부만 함께 반환
+- **검색 임계값은 실측으로 (W4)** · 관련 질문은 distance 1.08 이하, 무관한 질문은 1.34 이상으로 측정돼 그 사이인 1.2를 기준으로 필터링
 
-**원본 payload와 정규화 row를 이중으로 저장했다.**
-`save_structured_request`는 모델이 만든 tool arguments 전체를 `structured_requests.payload_json`에 원본 그대로 남기고, 동시에 `kind`에 따라 `schedules` / `todos` / `reminders`로 정규화한다. 둘은 `request_id`로 연결된다. 정규화 row만 남기면 "모델이 무엇을 어떻게 잘못 구조화했는지" 사후 분석이 불가능하다.
+## 05 문제 해결
 
-**검색 tool을 대상별로 쪼갰다.**
-자유 서술형 메모는 ChromaDB embedding 검색(`search_rag_memory`), 구조화 저장된 일정/할 일은 SQLite row 검색(`search_sqlite_requests`)으로 나눴다. 하나의 "검색" tool로 합치지 않은 이유는, 질문의 성격에 따라 검색 대상을 고르는 것 자체가 agentic 판단이고 그 판단이 trace에 남아야 하기 때문이다.
+| 증상 | 해결 |
+| --- | --- |
+| 취향을 말해도 저장이 안 되고, 대화 검색과 저장 기록 검색이 뒤섞임 (W4) | tool 이름 나열 대신 어떤 질문에 어떤 tool을 쓰는지 예시 중심으로 prompt 재작성 |
+| 철수와의 대화 검색 요청이 Nana로 위임됨 (W6) | 다른 사람이 언급된 대화·일정 요청은 Kana로 보내는 기준을 Supervisor prompt에 추가 |
+| 다음 주 화요일 같은 상대 날짜를 잘못 해석 (W6) | 오늘 날짜를 Kana prompt 맨 앞에 넣어 기준점 제공 |
+| 공통 시간이 없으면 기록 없이 대화가 끝남 (W6) | 후보가 없어도 결정 tool을 호출해 보류 상태와 이유를 남기도록 변경 |
 
-**역할 경계를 프롬프트가 아니라 도구 구성으로 강제했다.**
-Kana에게는 개인 일정 tool을 아예 주지 않아, Kana가 내 일정 충돌 여부를 임의로 판단할 수 없게 만들었다. 개인 일정 판단은 Nana의 trace에서만 나온다.
+**공통 교훈** · tool 설명과 prompt에 적히지 않은 규칙은 agent가 지키지 않음. W4 라우팅 버그와 W6 계약 설계 모두 같은 원인이었고, 이후 새 tool을 붙일 때마다 tool 설명, prompt, 실제 코드가 같은 규칙을 말하는지부터 점검
 
-## 5. 검증
+또한 W6의 세 건은 모두 예외 상황에서 발생. 빈 결과, 필터 없는 기본값, 외부 호출 실패를 정상 케이스와 별도로 확인하는 습관이 생김
 
-"답변이 그럴듯한가"로 동작을 판정하지 않기 위해 두 겹의 검증을 넣었다.
+## 06 결과와 한계
 
-1. **Trace assert** : tool 호출 순서와 저장 row count를 `assert`로 고정한다.
-   `assert called_tools[:2] == ["search_previous_conversations", "extract_schedules_from_history"]`
-2. **LLM-as-a-judge** : supervisor trace와 delegate payload JSON을 judge 모델에 넘겨 6개 체크리스트(위임 순서, 역할 침범 여부, 최종 답변의 근거 반영 등)로 PASS/FAIL을 받는다. 첫 줄이 `PASS`가 아니면 실행이 실패한다.
-
-재현성은 `uv.lock`과 `langgraph-prebuilt==1.0.8` 핀으로 고정했다. LangChain 1.x의 `create_agent` import가 이 전이 의존성 버전에 민감해 실제로 환경이 깨진 적이 있어, lockfile과 별개로 직접 핀을 박았다.
-
-## 6. 결과와 다음 단계
-
-**결과** — 골든 케이스("팀원 A/B/C와 다음 주 회의 시간을 잡아줘")에서 supervisor가 `nana_agent → kana_agent` 순서로 위임하고, 내 일정 충돌 확인과 팀원 가능 시간 후보를 모두 반영한 `final_slot`과 선택 `reason`을 산출한다.
-
-**한계** — 노트북 기반 PoC이며, 외부 멤버의 일정은 고정 데이터로 대체했다.
-
-**사용 모델** — OpenAI o3-mini
+- **결과** · 그룹 일정 요청에 검증된 후보 중 최종 시간과 선택 이유를 기록, 후보가 없으면 보류와 사유를 기록
+- **한계**
+  - 최종 확정 tool이 agent가 넘긴 시간을 검증된 후보와 다시 대조하지 않음. 과거 실행 기록 중 겹치는 시간이 확정된 사례 1건 확인
+  - Supervisor가 확정 후 불필요하게 Nana에 저장을 다시 요청하고, Nana의 거절 문구가 최종 답변에 섞이는 경우가 있음
+  - 팀원 데이터는 실습용 고정 데이터, 검증은 Trace 육안 확인 위주
+- **다음 단계** · 확정 시간을 검증된 후보 목록과 대조, 확정 이후 위임 종료 규칙을 Supervisor prompt에 추가, tool 호출 순서 회귀 테스트
